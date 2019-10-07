@@ -9,35 +9,10 @@ import matplotlib.pyplot as plt
 rd = pd.read_csv("C:/Users/JHYim/PycharmProjects/KSAE_2019_2/data/0_rawdata-1.csv")
 rd.columns = ["l","r","b","t","lat","lon","hea","ang","w","gt"]
 
+# 데이터 중 bounding box 좌측변 좌표가 0이고 우측변좌표도 0인경우, 또는 우측변이 1에 해당하는 경우 주변차량 전체가 영상 내 인식되지 않은 것으로 판단하여
+# 데이터셋에서 제외하였고, bounding box의 상하측변 y좌표, 주변차량의 local x,y좌표, 방위각, yaw angle은 현재 단계에서 활용하지 않아 데이터셋에서 제외
 dataset = rd.drop(rd[((rd.l==0) & (rd.r==0))|(rd.r==1)].index)
 dataset = dataset.drop(["b","t","lat","lon","hea","ang"],1)
 
-# dataset['l1s'] = dataset['l'].shift(-10)
-# dataset['l2s'] = dataset['l'].shift(-20)
-# dataset['l3s'] = dataset['l'].shift(-30)
-#
-# dataset['r1s'] = dataset['r'].shift(-10)
-# dataset['r2s'] = dataset['r'].shift(-20)
-# dataset['r3s'] = dataset['r'].shift(-30)
-#
-# dataset['gt1s'] = dataset['gt'].shift(-10)
-# dataset['gt2s'] = dataset['gt'].shift(-20)
-# dataset['gt3s'] = dataset['gt'].shift(-30)
-# dataset = dataset.dropna(axis=0)
 
 dataset.to_csv("C:/Users/JHYim/PycharmProjects/KSAE_2019_2/data/1_dataset-1.csv",header=False,index=False)
-#
-# x = dataset[['l','r','w']].values
-# y = dataset['3s'].values
-#
-# xtrain, xtest, ytrain, ytest = train_test_split(x,y,test_size=0.1,shuffle=False)
-# trainx = pd.DataFrame(xtrain)
-# testx = pd.DataFrame(xtest)
-# trainy = pd.DataFrame(ytrain)
-# testy = pd.DataFrame(ytest)
-#
-# trainx.to_csv("C:/Users/JHYim/PycharmProjects/KSAE_2019_2/data/2_xtrain.csv",header=False,index=False)
-# testx.to_csv("C:/Users/JHYim/PycharmProjects/KSAE_2019_2/data/3_xtest.csv",header=False,index=False)
-# trainy.to_csv("C:/Users/JHYim/PycharmProjects/KSAE_2019_2/data/2_ytrain.csv",index=False,header=False)
-# testy.to_csv("C:/Users/JHYim/PycharmProjects/KSAE_2019_2/data/3_ytest.csv",index=False,header=False)
-
