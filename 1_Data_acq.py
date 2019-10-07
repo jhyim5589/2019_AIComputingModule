@@ -1,5 +1,10 @@
 # CAN 데이터 및 Camera 영상처리 raw data를 수집
 # UDP 소켓통신을 이용하여 raw data 수집 및 가공
+# 수집하는 raw data는 크게 2종류로 분류가능하다.
+# 첫번째는 영상처리를 통해 획득한 영상 내 bounding box의 좌우측변 x좌표, 상하측변 y좌표이며,
+# 두번째는 V2X 통신을 통하여 수신한 주변차량의 local x,y좌표, heading(방위각), yaw angle, 차량전폭이다.
+# 그리고 주변차량과 자차량 local 좌표를 통해 계산한 거리를 ground truth로 활용한다.
+
 
 import numpy as np
 import socket
