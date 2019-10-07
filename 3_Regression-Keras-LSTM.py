@@ -78,8 +78,10 @@ model.compile(loss='mse', optimizer='rmsprop')
 
 model.summary()
 
+# 이미 3차원 array를 통하여 30개의 데이터셋에 대한 batch를 구성하였으므로 batch size는 1로, epoch은 5로 설정하여 fitting수행
 model.fit(trainX,trainY,validation_data=(testX, testY),batch_size=1,epochs=5)
 
+# prediction 결과를 별도로 저장
 pred = model.predict(testX)
 np.savetxt("C:/Users/JHYim/PycharmProjects/KSAE_2019_2/data/4_epoch5.csv",pred,delimiter=',')
 
