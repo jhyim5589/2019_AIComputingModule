@@ -29,14 +29,15 @@ while True:
     left, right, bottom, top = data[0] / 100 - 1, data[1] / 100 - 1, data[2] / 100 - 1, data[3] / 100 - 1
     left, right, bottom, top = round(left, 2), round(right, 2), round(bottom, 2), round(top, 2)
     
-    
+# local 좌표계 x,y 좌표와 주행방위각, 차량전폭 또한 int32형 데이터로 추출되어 1byte씩 packing 후 수신한 뒤 아래와 같이 처리하여 원데이터로 가공
     lat = (data[4] * 256*256*256 + data[5] * 65536 + data[6] * 256 + data[7]) - 1000
     long = (data[8] * 256*256*256 + data[9] * 65536 + data[10] * 256 + data[11]) - 1000
     heading = (data[12] * 256*256*256 + data[13] * 65536 + data[14] * 256 + data[15]) - 1000
     width = data[16] * 256*256*256 + data[17] * 65536 + data[18] * 256 + data[19]
-    angle = data[20]
-    
+    angle = data[20]    
     gt = (data[21] * 256*256*256 + data[22] * 65536 + data[23] * 256 + data[24]) / 100
+
+# 데이터를 프레임화 하고, 전치하여 행은 시간순, 열은 개별 데이터를 갖는 데이터프레임으로 구성하여 저장     
     frame = [left, right, bottom, top, lat, long, heading, angle, width, gt]
     df = pd.DataFrame(frame)
     df = np.transpose(df)
