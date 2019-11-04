@@ -2,36 +2,39 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from keras.models import Sequential
-from keras.layers import LSTM,GRU,SimpleRNN,Dense,Dropout,Flatten
-from keras.callbacks import EarlyStopping,ModelCheckpoint
-from keras import regularizers
+from keras.layers import LSTM,SimpleRNN,Dense,Dropout,Flatten
+from keras.callbacks import ModelCheckpoint
 import matplotlib.pyplot as plt
-import seaborn as sns
 
-rd = pd.read_csv("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/0_rawdata_test-fin.csv")
+# rawdata 불러오고 컬럼명 설정
+rd = pd.read_csv("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/0_rawdata_test-fin.csv")
 rd.columns = ["l","r","b","t","lat","lon","hea","ang","w","gt"]
 
+# rawdata 중 결측치(boundingbox 좌우측변좌표 모두 0 또는 우측변1)제거 + 미사용 컬럼 제거
 dataset = rd.drop(rd[((rd.l==0) & (rd.r==0))|(rd.r==1)].index)
 dataset = dataset.drop(["b","t","lat","lon","hea","ang"],1)
-dataset.to_csv("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/1_dataset-8.csv",header=False,index=False)
+dataset.to_csv("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/1_dataset-8.csv",header=False,index=False)
 
+# 만들어진 dataset에 대하여 예측목적 timestep 설정(현재 30step, 3초)
 basesec = 30
 targetsec1 = 10
 targetsec2 = 20
 targetsec3 = 30
-targetsec = targetsec1
+targetsec = targetsec3
 
-trgtime3 = dataset.shift(-1*targetsec3,axis=0)
+# 목표시간 데이터 시프트, 현재 거리데이터 삭제 및 xy분할
+trgtime = dataset.shift(-1*targetsec,axis=0)
 trgtime = pd.DataFrame(trgtime3)
-dataset['trgtime3'] = trgtime.values[:,-1]
+dataset['trgtime'] = trgtime.values[:,-1]
 dataset = dataset.dropna()
 dataset = dataset.drop(['gt'],1)
 xdata = dataset.values[:,:-1]
 ydata = dataset.values[:,-1]
 ydata = ydata.reshape(len(ydata),1)
-np.savetxt("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/2_xdata-8.csv",xdata,delimiter=',')
-np.savetxt("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/2_ydata-8.csv",ydata,delimiter=',')
+np.savetxt("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/2_xdata-8.csv",xdata,delimiter=',')
+np.savetxt("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/2_ydata-8.csv",ydata,delimiter=',')
 
+# x에 대해 직전30timestep 3차원 배열로 shaping,y도 최초30개 제거로 shaping
 xgroup = []
 for index in range(len(xdata)-(basesec)):
     xgroup.append(xdata[index:index+basesec,:])
@@ -39,6 +42,7 @@ xpanel = np.array(xgroup)
 ypanel = ydata[basesec:]
 ypanel = ypanel.reshape(len(ypanel),1)
 
+# dataset 비율 설정 train80%, 그중 검증20% 및 배치사이즈는 64
 trainp = 0.80
 valp = 0.2
 batchs = 64
@@ -51,6 +55,8 @@ ytrain = ypanel[:trainsize]
 xtest = xpanel[trainsize:,:]
 ytest = ypanel[trainsize:]
 
+# train데이터를 기준으로 스케일러 핏팅, train test 각 각 스케일링 수행
+# x데이터는 3차원 배열로 스케일링 불가하여 2차원변환 후 스케일링 3차원으로 재변환
 s0, s1, s2 = xtrain.shape[0], xtrain.shape[1], xtrain.shape[2]
 xtrain = xtrain.reshape(s0 * s1, s2)
 xscaler = StandardScaler()
@@ -65,6 +71,7 @@ xtest = xscaler.transform(xtest)
 xtest = xtest.reshape(s0, s1, s2)
 ytest = yscaler.transform(ytest)
 
+# lstm, rnn, mlp 모델 생성
 def build_lstmmodel():
     lstmmodel = Sequential()
     lstmmodel.add(LSTM(64, return_sequences=True, batch_input_shape=(batchs,xtrain.shape[1],xtrain.shape[2]),
@@ -98,21 +105,20 @@ def build_mlpmodel():
     mlpmodel.compile(loss='mse', optimizer='adam')
     return mlpmodel
 
-k = 5
-valnum = int(len(xtrain)*valp - len(xtrain)*valp%batchs)
-all_score = []
+# k=5로 하는 k-fold validation시 최적 모델을 저장할 모델체크포인트 생성
 lstmpred = np.ndarray(shape=(len(xtest),k))
 rnnpred = np.ndarray(shape=(len(xtest),k))
 mlppred = np.ndarray(shape=(len(xtest),k))
-lstmmcp = ModelCheckpoint(filepath="C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/"
-                               "3_best_LSTMmodel.hdf5",
+lstmmcp = ModelCheckpoint(filepath="D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/3_best_LSTMmodel.hdf5",
                       monitor='val_loss',verbose=1,save_best_only=True)
-rnnmcp = ModelCheckpoint(filepath="C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/"
-                               "3_best_RNNmodel.hdf5",
+rnnmcp = ModelCheckpoint(filepath="D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/3_best_RNNmodel.hdf5",
                       monitor='val_loss',verbose=1,save_best_only=True)
-mlpmcp = ModelCheckpoint(filepath="C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/"
-                               "3_best_MLPmodel.hdf5",
+mlpmcp = ModelCheckpoint(filepath="D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/3_best_MLPmodel.hdf5",
                       monitor='val_loss',verbose=1,save_best_only=True)
+
+# k=5로 하는 k-fold validation 및 fitting 수행, test 데이터에 대한 prediction 수행
+k = 5
+valnum = int(len(xtrain)*valp - len(xtrain)*valp%batchs)
 numepoch = 100
 for i in range(k):
     xval = xtrain[i*valnum:(i+1)*valnum]
@@ -132,9 +138,9 @@ for i in range(k):
     mlpfit = mlpmodel.fit(partial_xtrain, partial_ytrain, validation_data=(xval, yval), epochs=numepoch, batch_size=batchs,
                   callbacks=[mlpmcp],verbose=1, shuffle=False)
 
-    lstmmodel.load_weights("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/3_best_LSTMmodel.hdf5")
-    rnnmodel.load_weights("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/3_best_RNNmodel.hdf5")
-    mlpmodel.load_weights("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/3_best_MLPmodel.hdf5")
+    lstmmodel.load_weights("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/3_best_LSTMmodel.hdf5")
+    rnnmodel.load_weights("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/3_best_RNNmodel.hdf5")
+    mlpmodel.load_weights("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/3_best_MLPmodel.hdf5")
 
     lstmlog = pd.DataFrame(lstmfit.history)
     rnnlog = pd.DataFrame(rnnfit.history)
@@ -148,12 +154,15 @@ lstmmodel.summary()
 rnnmodel.summary()
 mlpmodel.summary()
 
+
+# y 참값과 예측 결과 전체에 대해 인버스 스케일링
 ytruth = yscaler.inverse_transform(ytest)
 for i in range(k):
     lstmpred[:,[i]] = yscaler.inverse_transform(lstmpred[:,[i]])
     rnnpred[:,[i]] = yscaler.inverse_transform(rnnpred[:,[i]])
     mlppred[:,[i]] = yscaler.inverse_transform(mlppred[:,[i]])
 
+k=0~4 lstm, rnn, mlp 각각의 최적 rmse 계산
 lstmrmse = 20000
 rnnrmse = 20000
 mlprmse = 20000
@@ -177,11 +186,12 @@ lstmpred = lstmpred[:,i]
 rnnpred = rnnpred[:,i]
 mlppred = mlppred[:,i]
 
-np.savetxt("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/3_ytruth-8.csv",ytruth,delimiter=',')
-np.savetxt("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/3_lstmresult-8.csv",lstmpred,delimiter=',')
-np.savetxt("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/3_rnnresult-8.csv",rnnpred,delimiter=',')
-np.savetxt("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/3_mlpresult-8.csv",mlppred,delimiter=',')
+np.savetxt("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/3_ytruth-8.csv",ytruth,delimiter=',')
+np.savetxt("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/3_lstmresult-8.csv",lstmpred,delimiter=',')
+np.savetxt("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/3_rnnresult-8.csv",rnnpred,delimiter=',')
+np.savetxt("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/3_mlpresult-8.csv",mlppred,delimiter=',')
 
+# 타겟 타임스텝인 10, 20, 30으로만 잘라내어 계산한 rmse를 계산하여 저장하고 플로팅
 lstmrmse1 = np.sqrt(np.mean(np.square(ytruth[:targetsec1]-lstmpred[:targetsec1])))
 rnnrmse1 = np.sqrt(np.mean(np.square(ytruth[:targetsec1]-rnnpred[:targetsec1])))
 mlprmse1 = np.sqrt(np.mean(np.square(ytruth[:targetsec1]-mlppred[:targetsec1])))
@@ -216,6 +226,6 @@ loss.set_xlabel('Epoch(회)')
 loss.set_ylabel('Loss')
 loss.legend()
 
-fig1.savefig("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/PredResult-dataset-8.png",dpi=600)
-fig2.savefig("C:/Users/JHYim/PycharmProjects/AICM_2019_2/data/final-1/ValLoss-dataset-8.png",dpi=600)
+fig1.savefig("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/PredResult-dataset-8.png",dpi=600)
+fig2.savefig("D:/1 개인자료/4 코딩스터디/PyCharm/PathPrediction_v1911/Data/ValLoss-dataset-8.png",dpi=600)
 plt.show()
